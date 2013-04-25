@@ -182,7 +182,7 @@ def QM_validation(logeq, minterm_true, minterm_dc):
 
     print("=================== Validation =============================")
     valid = []
-    for m in minterm_true:
+    for m in range(2**blength):
         for v in valeq:
             if (m | v[1]) ^ (v[0] | v[1]) == 0:
                 valid.append(m)
