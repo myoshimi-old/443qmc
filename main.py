@@ -200,7 +200,7 @@ def QM_validation(logeq, minterm_true, minterm_dc):
         for x in xrange(len(mm)):
             if mm[x] != valid[x]:
                 f += 1
-    if f == 0:
+    if (f == 0) and (len(mm) == len(valid)):
         print "True"
     else:
         print "Failed"
