@@ -36,7 +36,7 @@ def hamming_output(in_hamming, minterm, blength):
         print "------------------------------------------------------------"
         
 
-def compute_stage(in_hamming, minterm):
+def compute_stage(in_hamming, minterm, blength):
     out_hamming = [[] for i in xrange(len(in_hamming))]
     primes = []
     for idx in xrange(len(in_hamming)-1):
@@ -66,6 +66,7 @@ def compute_stage(in_hamming, minterm):
         for s in in_hamming[idx]:
             if s['flag'] == 0:
                 primes.append(s)
+
     hamming_output(out_hamming, minterm, blength)
     print "Primes"
     for p in primes:
@@ -73,136 +74,164 @@ def compute_stage(in_hamming, minterm):
     print "------------------------------------------------------------"
     return (out_hamming, primes)
 
-parser = argparse.ArgumentParser(description='')
-parser.add_argument('-o', nargs='*')
-parser.add_argument('-dc', nargs='*')
-parser.add_argument('-v', '--version',
-                    action='version',
-                    version='%(prog)s 0.0.1') # version
-args = parser.parse_args()
+def QM(minterm_true, minterm_dc):
+    print "======================== Computing ========================="
+    minterm = minterm_true + minterm_dc
+    blength= len(format(max(minterm),'0b')) # ビット長の計算
+    print "blength:", blength
+    print "# of 1  :"+str(len(minterm_true))
+    print "# of DC :"+str(len(minterm_dc))
 
-print args
+    print "======================== Input Data ========================"
 
-minterm_true = []
-minterm_dc   = []
+    primes = []
+    hamming = [[] for i in range(blength+1)]
 
-if args.o:
-    for n in args.o:
-        minterm_true.append(int(n))
+    # Generating dictionary for each input
+    # 
+    for n in xrange(len(minterm)):
+        hamming[count_bit(minterm[n])].append({"idx":[n], "mask":0, "flag":0})
 
-if args.dc:
-    for n in args.dc:
-        minterm_dc.append(int(n))
+    for h in xrange(len(hamming)):
+        print "["+str(h)+"]"
+        for m in hamming[h]:
+            print "\t m"+str(minterm[m['idx'][0]])+"\t "+\
+                format(minterm[m['idx'][0]], '0'+str(blength)+'b')
+        print "------------------------------------------------------------"
 
-print "======================== Computing ========================="
-minterm = minterm_true + minterm_dc
-blength= len(format(max(minterm),'0b')) # ビット長の計算
-print "blength:", blength
-print "# of 1  :"+str(len(minterm_true))
-print "# of DC :"+str(len(minterm_dc))
+    print "=============== Mid Process Computation ===================="
+    n = sys.maxint
+    while n != 0:
+        hamming_tuple = compute_stage(hamming, minterm, blength)
+        hamming2      = hamming_tuple[0]
+        primes.extend(hamming_tuple[1])
+        hamming = hamming2
+        n = reduce(lambda a,b: a+b, map((lambda x: len(x)), hamming))
+        print "remains : ", n
 
-print "======================== Input Data ========================"
-
-primes = []
-hamming = [[] for i in range(blength+1)]
-
-# Generating dictionary for each input
-# 
-for n in xrange(len(minterm)):
-    hamming[count_bit(minterm[n])].append({"idx":[n], "mask":0, "flag":0})
-
-for h in xrange(len(hamming)):
-    print "["+str(h)+"]"
-    for m in hamming[h]:
-        print "\t m"+str(minterm[m['idx'][0]])+"\t "+\
-            format(minterm[m['idx'][0]], '0'+str(blength)+'b')
-    print "------------------------------------------------------------"
-
-print "=============== Mid Process Computation ===================="
-pp = 0
-while 1:
-    hamming_tuple = compute_stage(hamming, minterm)
-    hamming2      = hamming_tuple[0]
-    primes.extend(hamming_tuple[1])
-    n = 0
-    for h in hamming2:
-        n += len(h)
-    print "remains : ", n
-    hamming = hamming2
-    pp += 1
-
-    if n == 0:
-        break
-
-print "======================== Prime Expression ========================"
-i = 0
-for p in primes:
-    print format(i,'4d'),\
-        format_ba(minterm[p['idx'][0]], p['mask'], blength)
-    i+=1
-
-
-# Generating btable;    
-print "======================== Tables ========================"
-btable = [0 for i in xrange(len(minterm_true))]
-
-for j in xrange(len(minterm_true)):
-    btable[j] = 0
+    print "======================== Prime Expression ========================"
+    i = 0
     for p in primes:
-        btable[j] *= 2
-        if j in p['idx']:
-            btable[j] += 1
+        print format(i,'4d'),\
+            format_ba(minterm[p['idx'][0]], p['mask'], blength)
+        i+=1
 
-for bt in xrange(len(btable)):
-    print "p["+str(bt)+"]\t"+str(minterm_true[bt])+"\t"+\
-        format(btable[bt],'0'+str(len(primes))+'b')
+    # Generating btable;    
+    print "======================== Tables ========================"
+    btable = [0 for i in xrange(len(minterm_true))]
+
+    for j in xrange(len(minterm_true)):
+        btable[j] = 0
+        for p in primes:
+            btable[j] *= 2
+            if j in p['idx']:
+                btable[j] += 1
+
+    for bt in xrange(len(btable)):
+        print "p["+str(bt)+"]\t"+str(minterm_true[bt])+"\t"+\
+            format(btable[bt],'0'+str(len(primes))+'b')
             
-# 被覆問題
-g = [btable[0]]
-r = []
-
-for bt in xrange(len(btable)):
+    # 被覆問題
+    g = [btable[0]]
     r = []
-    for ib in reversed(xrange(len(primes))):
-        eidx = btable[bt]&(2**ib)
-        if eidx:
-            for p in g:
-                r.append(p|eidx)
-    g = list(set(r))
+
+    for bt in xrange(len(btable)):
+        r = []
+        for ib in reversed(xrange(len(primes))):
+            eidx = btable[bt]&(2**ib)
+            if eidx:
+                for p in g:
+                    r.append(p|eidx)
+        g = list(set(r))
+
+    g.sort(cmp=lambda x,y: cmp(count_bit(x), count_bit(y)))
+
+    print "========= Prime Combinations for Logical equations ========="
+    for i in g:
+        print format(i,'0'+str(len(primes))+'b')+","+str(count_bit(i))
+
+    # 解の生成
+    result = []
+    for r in g:
+        nr = format(r, '0'+str(len(primes))+'b')
+        rtmp = []
+        for j in xrange(len(nr)):
+            if nr[j] == '1':
+                rtmp.append(format_ba(minterm[primes[j]['idx'][0]],
+                                      primes[j]['mask'],
+                                      blength))
+        #print rtmp
+        result.append(rtmp)
+    
+    print "============== Computation Finished ========================"
+
+    return result
+
+def QM_validation(logeq, minterm_true, minterm_dc):
+    minterm = minterm_true + minterm_dc
+    blength= len(format(max(minterm),'0b')) # ビット長の計算
+
+    valeq = []
+    
+    for eq in logeq:
+        t = int(''.join(map((lambda x: '0' if x == 'X' else x), eq)), 2)
+        d = int(''.join(map((lambda x: '1' if x == 'X' else '0'), eq)), 2)
+        valeq.append((t, d))
+
+    print "=================== Validation ============================="
+    valid = []
+    for m in minterm_true:
+        for v in valeq:
+            if (m | v[1]) ^ (v[0] | v[1]) == 0:
+                valid.append(m)
+    valid = sorted(list(set(valid)))
+
+    mm = minterm_true
+    mm.sort()
+    for m in mm:
+        print m,
+    print ""
+    for v in valid:
+        print v,
+    print ""
+    
+    f = 0
+    if len(mm) == len(valid):
+        for x in xrange(len(mm)):
+            if mm[x] != valid[x]:
+                f += 1
+    if f == 0:
+        print "True"
+    else:
+        print "Failed"
 
 
-g.sort(cmp=lambda x,y: cmp(count_bit(x), count_bit(y)))
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-o', nargs='*')
+    parser.add_argument('-dc', nargs='*')
+    parser.add_argument('-v', '--version',
+                        action='version',
+                        version='%(prog)s 0.0.1') # version
+    args = parser.parse_args()
+    
+    minterm_true = map((lambda x: int(x)), args.o) if args.o else []
+    minterm_dc = map((lambda x: int(x)), args.dc) if args.dc else []
 
-print "========= Prime Combinations for Logical equations ========="
-for i in g:
-    print format(i,'0'+str(len(primes))+'b')+","+str(count_bit(i))
+    result = QM(minterm_true, minterm_dc)
 
-# 解の生成
-result = []
-for r in g:
-    rtmp = []
-    for ib in reversed(xrange(len(primes))):
-        if r & (2**ib) :
-            pidx = len(primes)-ib-1
-            rtmp.append(format_ba(primes[pidx]['idx'][0],
-                                  primes[pidx]['mask'],
-                                  blength))
-    result.append(rtmp)
+    min_num   = sys.maxint
+    min_array = []
+    for r in result:    
+        if min_num > len(r):
+            min_num = len(r)
+            min_array = r
 
-min_num   = sys.maxint
-min_array = []
-for r in result:    
-    if min_num > len(r):
-        min_num = len(r)
-        min_array = r
+    print "Number of Equations : "+str(min_num)
+    for i in min_array:
+        print i,
+    print ""
 
-print "Number of Equations : "+str(min_num)
-for i in r:
-    print i,
-print ""
-
-
-#if __name__ == '__main__':
-
+    QM_validation(min_array, minterm_true, minterm_dc)
 
 
