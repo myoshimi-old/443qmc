@@ -14,22 +14,23 @@ if __name__ == '__main__':
                         version='%(prog)s 0.0.1') # version
     args = parser.parse_args()
     
-    minterm_true = map((lambda x: int(x)), args.o) if args.o else []
-    minterm_dc = map((lambda x: int(x)), args.dc) if args.dc else []
+    minterm_true = list(map((lambda x: int(x)), args.o)) if args.o else []
+    minterm_dc = list(map((lambda x: int(x)), args.dc)) if args.dc else []
 
     result = qmpy.QM(minterm_true, minterm_dc)
 
-    min_num   = sys.maxint
+    min_num   = sys.maxsize
     min_array = []
     for r in result:    
         if min_num > len(r):
             min_num = len(r)
             min_array = r
 
-    print "Number of Equations : "+str(min_num)
+    print(("Number of Equations : "+str(min_num)))
+    s = ""
     for i in min_array:
-        print i,
-    print ""
-
+        s+=str(i)+" "
+    print(s)
+    
     qmpy.QM_validation(min_array, minterm_true, minterm_dc)
 
