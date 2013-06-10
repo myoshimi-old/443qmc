@@ -19,18 +19,10 @@ if __name__ == '__main__':
 
     result = qmpy.QM(minterm_true, minterm_dc)
 
-    min_num   = sys.maxsize
-    min_array = []
-    for r in result:    
-        if min_num > len(r):
-            min_num = len(r)
-            min_array = r
-
-    print(("Number of Equations : "+str(min_num)))
-    s = ""
-    for i in min_array:
-        s+=str(i)+" "
-    print(s)
+    print("Number of Equations : "+str(len(result)))
+    for r in result:
+        print(r)
+    print("")
     
-    qmpy.QM_validation(min_array, minterm_true, minterm_dc)
+    qmpy.QM_validation(result, minterm_true, minterm_dc)
 

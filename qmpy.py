@@ -3,6 +3,7 @@
 
 import argparse
 import sys
+import math
 from functools import reduce
 
 def count_bit(x):
@@ -55,7 +56,6 @@ def compute_stage(in_hamming, minterm, blength):
                               | s['mask'] | d['mask']
                     # cb : dont careを除くビットの数
                     cb = count_bit(minterm[s['idx'][0]]|dc) - count_bit(dc)
-
                     nidx = s['idx']+d['idx']
                     nidx.sort()
                     ndic = {"idx": nidx, "mask":dc, "flag":0}
@@ -117,6 +117,7 @@ def QM(minterm_true, minterm_dc):
                   format_ba(minterm[p['idx'][0]], p['mask'], blength))
         i+=1
 
+    """
     # Generating btable;    
     print("======================== Tables ========================")
     btable = [0 for i in range(len(minterm_true))]
@@ -130,43 +131,51 @@ def QM(minterm_true, minterm_dc):
 
     for bt in range(len(btable)):
         print(("p["+str(bt)+"]\t"+str(minterm_true[bt])+"\t"+\
-                   format(btable[bt],'0'+str(len(primes))+'b')))
-            
-    # 被覆問題
-    g = [btable[0]]
-    r = []
+                   format(btable[bt],'0'+str(len(primes))+'b'))+"\t"+\
+                  str(count_bit(btable[bt])));
+    """
 
-    for bt in range(len(btable)):
-        r = []
-        for ib in reversed(list(range(len(primes)))):
-            eidx = btable[bt]&(2**ib)
-            if eidx:
-                for p in g:
-                    r.append(p|eidx)
-        g = list(set(r))
-
-    #g.sort(cmp=lambda x,y: cmp(count_bit(x), count_bit(y)))
-    g.sort(key=lambda x: count_bit(x))
-
-    print("========= Prime Combinations for Logical equations =========")
-    for i in g:
-        print((format(i,'0'+str(len(primes))+'b')+","+str(count_bit(i))))
-
-    # 解の生成
+    r = 0;
     result = []
-    for r in g:
-        nr = format(r, '0'+str(len(primes))+'b')
-        rtmp = []
-        for j in range(len(nr)):
-            if nr[j] == '1':
-                rtmp.append(format_ba(minterm[primes[j]['idx'][0]],
-                                      primes[j]['mask'],
-                                      blength))
-        #print rtmp
-        result.append(rtmp)
+
+    print("====================== P Tables ========================")
+    ptable = [{"idx":i, "data":0} for i in range(len(primes))]
+    for p in range(len(ptable)):
+        ptable[p]['data'] = 0
+        for i in primes[p]['idx']:
+            ptable[p]['data'] |= 1 << i
+        print("["+str(ptable[p]['idx'])+"] "+\
+                  format(ptable[p]['data'], '0'+str(len(minterm_true))+'b')+\
+                  " "+str(count_bit(ptable[p]['data'])))
+        
+    print("------------------------------------------------------------")
+    j = 0;
+    while count_bit(r) < len(minterm_true):
+        ptable.sort(key=lambda x: count_bit(x.get('data')|r)-count_bit(r),
+                    reverse=True)
+        """
+        for p in ptable:
+            print "["+str(p['idx'])+"] "+\
+                format(p['data'], '0'+str(len(minterm_true))+'b')+\
+                " "+str(count_bit(p['data']|r)-count_bit(r))
+        """
+        r |= ptable[0]['data']
+        #result.append(ptable[0]['idx'])
+        result.append(format_ba(minterm[primes[ptable[0]['idx']]['idx'][0]],
+                                primes[ptable[0]['idx']]['mask'],
+                                blength))
+        ptable.pop(0)
+        print("R["+str(j)+"]: "+\
+                  format(r, '0'+str(int(math.ceil(len(minterm_true)*0.25)))+'X')+\
+                  " : " + str(len(minterm_true)-count_bit(r)))
+        j+=1
+        """
+        for i in result:
+            print i
+        print("------------------------------------------------------------")
+        """
     
     print("============== Computation Finished ========================")
-
     return result
 
 def QM_validation(logeq, minterm_true, minterm_dc):
@@ -225,6 +234,7 @@ if __name__ == '__main__':
 
     result = QM(minterm_true, minterm_dc)
 
+    """
     min_num   = sys.maxsize
     min_array = []
     for r in result:    
@@ -237,6 +247,12 @@ if __name__ == '__main__':
     for i in min_array:
         s+=str(i)+" "
     print(s)
+    """
 
-    QM_validation(min_array, minterm_true, minterm_dc)
+    print("Number of Equations : "+str(len(result)))
+    for r in result:
+        print(r)
+    print("")
+
+    QM_validation(result, minterm_true, minterm_dc)
 
